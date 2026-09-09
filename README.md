@@ -30,6 +30,8 @@ CMEMS 데이터 다운로드 → 그래프 생성 → 월별 코멘트 작성 �
 
 ```
 east-sea-eddy/   (오션스코프)
+├─ environment.yml           conda 환경 정의  ← 설치는 여기서 시작
+├─ requirements.txt          pip 로 설치할 때의 대안 목록
 ├─ code/                     파이썬 스크립트
 │  ├─ paths.py               공통 경로 헬퍼 (모든 폴더 경로를 여기서 결정)
 │  ├─ download_data.py  eddy_tracking.py  eastsea_current.py
@@ -64,7 +66,7 @@ east-sea-eddy/   (오션스코프)
 ├─ web/                      웹 뷰어 (보고서와 별개, docs/WEB_PLAN.md 참고)
 │  ├─ server/                FastAPI (app.py · jobs.py · pipeline.py)
 │  ├─ static/                index.html · app.js · style.css
-│  └─ cache/                 렌더된 PNG·통계 (재생성 가능)
+│  └─ cache/                 렌더된 PNG·통계 (실행하면 자동 생성, 지워도 무방)
 ├─ reference/                참고 자료 (파이프라인에서 사용하지 않음)
 │  ├─ reports/               2025 소용돌이 보고서(.hwp), 수치예측모델 보고서
 │  ├─ observation/           KHOA 해류조사·CTD 관측 자료 (.xlsx)
@@ -73,29 +75,72 @@ east-sea-eddy/   (오션스코프)
 └─ .claude/skills/generate-eddy-report/   Claude Code 스킬
 ```
 
-## 빠른 시작
+## 설치 (최초 1회)
 
-Claude Code에서 한 줄이면 됩니다:
+### 1. conda 환경 만들기
 
+cartopy · netCDF4 는 GEOS/PROJ/HDF5 같은 C 라이브러리가 필요해서 pip 설치가
+자주 깨집니다. **conda(Miniconda/Anaconda) 를 권장**합니다.
+
+프로젝트 최상위 폴더에서:
+
+```bash
+conda env create -f environment.yml
+conda activate oceanscope
 ```
-/generate-eddy-report 2026
+
+설치에 5~10분 정도 걸립니다. 다음부터는 `conda activate oceanscope` 한 줄이면 됩니다.
+
+<details>
+<summary>conda 없이 pip 만 쓸 때</summary>
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate       # Windows (macOS/Linux: source .venv/bin/activate)
+pip install -r requirements.txt
 ```
 
-데이터 다운로드부터 최종 HWPX 생성까지 자동으로 진행되며, 월별 요약 코멘트는 Claude가
-그래프와 통계를 직접 보고 2025년 보고서 문체로 작성합니다.
-과거 연도도 동일합니다: `/generate-eddy-report 2024`
+cartopy 설치가 실패하면 conda 쪽을 쓰세요.
+</details>
 
-## 웹 뷰어 — 원하는 날짜·영역 바로 보기
+### 2. CMEMS 로그인
 
-보고서와 별개로, 아무 날짜·영역이나 골라 지도 그림을 바로 보고 내려받는 도구입니다.
+자료를 내려받으려면 [Copernicus Marine](https://data.marine.copernicus.eu) 무료 계정이
+필요합니다. 이 PC 에서 **한 번만** 로그인해 두면 보고서 생성·웹 뷰어 모두 같은
+로그인을 쓰므로 이후로는 계정을 다시 입력할 일이 없습니다.
+
+```bash
+copernicusmarine login
+```
+
+(대화형 로그인이 어려운 환경이면 환경변수 `COPERNICUSMARINE_SERVICE_USERNAME` /
+`COPERNICUSMARINE_SERVICE_PASSWORD` 로 대신할 수 있습니다.)
+
+### 3. 보고서 템플릿 (보고서를 만들 때만)
+
+한글(정품)에서 `reference/reports/2025 동해 소용돌이 분석보고서.hwp` 를
+**다른 이름으로 저장 → HWPX** 로 변환해 `template/template_2025.hwpx` 로 둡니다.
+(이미 배치되어 있으면 생략)
+
+---
+
+## 실행
+
+아래 명령은 모두 **프로젝트 최상위 폴더(`east-sea-eddy/`)에서**,
+`conda activate oceanscope` 로 환경을 켠 상태에서 실행합니다.
+
+### 웹 뷰어 — 원하는 날짜·영역 바로 보기
+
+아무 날짜·영역이나 골라 지도 그림을 바로 보고 내려받는 도구입니다.
 
 ```bash
 python -m uvicorn web.server.app:app --host 127.0.0.1 --port 8000
 ```
 
 브라우저에서 `http://127.0.0.1:8000` 접속 → 날짜·영역·항목(소용돌이/해류/수온)을
-고르고 **분석 실행**. 자료가 없는 날짜는 CMEMS 에서 자동으로 내려받습니다
-(계정을 비워 두면 `copernicusmarine login` 으로 저장해 둔 로그인을 씁니다).
+고르고 **분석 실행**. 종료는 터미널에서 `Ctrl+C`. 자료가 없는 날짜는 위 2단계에서
+해 둔 `copernicusmarine login` 자격증명으로 자동으로 내려받습니다(화면 왼쪽에 로그인
+상태가 표시됩니다). 로그인 전이면 이미 받아둔 날짜만 볼 수 있습니다.
 
 보고서와 **같은 분석 코드**를 쓰므로 숫자가 어긋나지 않습니다. 다른 것은 장식
 (로고·박스·관측점 제거)과 해상도, 표출 범위뿐입니다. 설계·성능 측정·주의사항은
@@ -106,30 +151,10 @@ python -m uvicorn web.server.app:app --host 127.0.0.1 --port 8000
 밖까지 넓히면 황해·동중국해·일본 동안까지 그 영역 전부를 분석합니다. 소용돌이
 탐지는 영역이 넓을수록 오래 걸려 1,000 deg²(예: 40°×25°)까지만 허용합니다.
 
-> CMEMS 계정을 입력받으므로 반드시 `127.0.0.1` 로만 띄우세요.
-> 입력한 계정은 해당 요청에만 쓰이고 디스크·로그에 남지 않습니다.
+> 개인 PC 용 로컬 도구이므로 `127.0.0.1` 로만 띄우세요. 웹 화면은 계정을
+> 입력받지 않고, 이 PC 에 저장된 로그인을 그대로 씁니다.
 
-## 사전 준비 (최초 1회)
-
-1. **Python 패키지**
-
-   ```bash
-   pip install copernicusmarine numpy matplotlib cartopy shapely netCDF4 scipy pyproj imageio pillow
-   ```
-
-2. **CMEMS 로그인** — [Copernicus Marine](https://data.marine.copernicus.eu) 무료 계정 필요
-
-   ```bash
-   copernicusmarine login
-   ```
-
-3. **템플릿** — 한글(정품)에서 `reference/reports/2025 동해 소용돌이 분석보고서.hwp`를
-   **다른 이름으로 저장 → HWPX** 로 변환해 `template/template_2025.hwpx`로 배치
-   (이미 배치되어 있으면 생략)
-
-## 수동 실행
-
-단계별로 직접 실행할 수도 있습니다:
+### 보고서 파이프라인
 
 ```bash
 # 1) 데이터 다운로드 + 그래프 + 통계 (연도 전체 또는 특정 월)
@@ -137,7 +162,7 @@ python code/run_pipeline.py 2026
 python code/run_pipeline.py 2026 3            # 3월만
 python code/run_pipeline.py 2026 --skip-download   # 데이터 보유 시
 
-# 2) 코멘트 작성 → output/intermediate/comments/comments_2026.json (Claude 또는 수동 작성)
+# 2) 코멘트 작성 → output/intermediate/comments/comments_2026.json
 #    형식: {"1": "(1월) 동해에 나타난 소용돌이는 ...", ..., "12": "(12월) ..."}
 
 # 3) 보고서 조립
@@ -153,10 +178,26 @@ python code/eastsea_current.py 20260115
 python code/eastsea_sst.py 20260115
 ```
 
+### Claude Code 스킬 (선택)
+
+Claude Code 를 쓰면 2번 코멘트 작성까지 한 줄로 끝납니다:
+
+```
+/generate-eddy-report 2026
+```
+
+데이터 다운로드부터 최종 HWPX 생성까지 자동으로 진행되며, 월별 요약 코멘트는
+Claude 가 그래프와 통계를 직접 보고 2025년 보고서 문체로 작성합니다.
+과거 연도도 동일합니다: `/generate-eddy-report 2024`
+
+---
+
 ## 파일 구성
 
 | 파일 | 역할 |
 |---|---|
+| `environment.yml` | conda 환경 정의 (`conda env create -f environment.yml`) |
+| `requirements.txt` | pip 설치용 대안 목록 |
 | `code/paths.py` | 공통 경로 헬퍼 — data/output 하위 폴더를 결정하고 입력 파일을 재귀 검색 |
 | `code/mapstyle.py` | 지도 그림 공통 스타일 (보고서용/웹용) — 축·해안선·격자선·지명·로고 |
 | `code/download_data.py` | CMEMS 원본 파일 다운로드 (SLA/지형류 + OSTIA SST, 매월 15일자) |
@@ -204,8 +245,7 @@ python code/eastsea_sst.py 20260115
   동해 밖(일본 동편 태평양·남해) 소용돌이가 섞여 들어왔습니다. 지금은 난수성·냉수성
   모두 마스킹된 자료로 탐지합니다. **난수성·울릉 난수성·독도 냉수성은 그대로**이고
   동해 전체 냉수성만 날짜당 0~3개 줄어듭니다. 발간된 2025년판의 동해 전체 냉수성
-  수치와는 달라지며, 구 동작 결과는 `output/eddy_tracking/json_baseline_legacy/` 에
-  남겨 두었습니다.
+  수치와는 달라집니다.
 - **파일 용량**: 교체 이미지는 `build_report.py`의 `MAX_IMG_WIDTH`(기본 1400px)로 축소 후
   삽입됩니다. 최종 파일이 무거우면 1000~1200으로 낮추세요.
 - **재실행 안전**: 다운로드·그래프 모두 기존 산출물이 있으면 건너뛰므로, 중단됐던 연도를

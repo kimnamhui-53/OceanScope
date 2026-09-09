@@ -16,7 +16,10 @@ CMEMS 데이터 자동 다운로드 (동해 소용돌이 보고서용)
 과거 연도는 NRT(준실시간) 대신 MY(재처리) 데이터셋에서 받으며,
 파일명은 기존 스크립트의 glob 패턴에 맞게 정규화한다.
 
-사전 준비(1회): pip install copernicusmarine && copernicusmarine login
+CMEMS 로그인은 이 PC 에 한 번만 해 두면 된다(웹 뷰어도 같은 로그인을 쓴다):
+    pip install copernicusmarine && copernicusmarine login
+CI 처럼 대화형 로그인이 어려우면 환경변수 COPERNICUSMARINE_SERVICE_USERNAME /
+COPERNICUSMARINE_SERVICE_PASSWORD 를 대신 쓴다.
 """
 import os
 import sys
@@ -47,7 +50,23 @@ SST_NRT_START = dt.date(2007, 1, 1)
 
 
 class AuthError(RuntimeError):
-    """CMEMS 로그인 실패 — 아이디/비밀번호를 확인해야 한다."""
+    """CMEMS 로그인 실패 — `copernicusmarine login` 을 다시 해야 한다."""
+
+
+def logged_in():
+    """이 PC 에 쓸 수 있는 CMEMS 자격증명이 있는지.
+
+    - `copernicusmarine login` 이 저장해 둔 자격증명 파일, 또는
+    - 환경변수 COPERNICUSMARINE_SERVICE_USERNAME / _PASSWORD
+      (copernicusmarine 이 인자 없이 호출되면 이 환경변수를 자동으로 읽는다.)
+
+    자격증명을 다루는 곳은 여기 한 곳뿐이다 — 웹 뷰어도 이 함수를 쓴다.
+    """
+    if (os.environ.get('COPERNICUSMARINE_SERVICE_USERNAME')
+            and os.environ.get('COPERNICUSMARINE_SERVICE_PASSWORD')):
+        return True
+    return os.path.exists(os.path.expanduser(
+        '~/.copernicusmarine/.copernicusmarine-credentials'))
 
 
 def _is_auth_error(exc):
@@ -61,22 +80,17 @@ def _existing(pattern):
     return paths.find_data(pattern)
 
 
-def _get_original_files(dataset_id, file_filter, dest, creds=None):
+def _get_original_files(dataset_id, file_filter, dest):
     """copernicusmarine get 으로 해당 일자의 원본 파일을 받아 경로 목록을 반환.
 
-    creds 를 주면 (username, password) 를 그 자리에서만 쓰고 자격증명 파일을
-    만들지 않는다. 웹 뷰어가 사용자 계정을 넘길 때 쓰는 경로다.
-    없으면 기존처럼 `copernicusmarine login` 으로 저장해 둔 자격증명을 쓴다.
+    인증은 `copernicusmarine login` 으로 저장해 둔 자격증명(또는 환경변수)에
+    맡긴다 — logged_in() 참고.
     """
-    extra = {}
-    if creds and creds[0] and creds[1]:
-        extra = {'username': creds[0], 'password': creds[1]}
     result = copernicusmarine.get(
         dataset_id=dataset_id,
         filter=file_filter,
         output_directory=dest,
         no_directories=True,
-        **extra,
     )
     files = [str(f.file_path) for f in getattr(result, 'files', [])]
     return files
@@ -96,7 +110,7 @@ def _normalize(files, target_name, dest):
     return dst
 
 
-def download_sla(date, creds=None):
+def download_sla(date):
     """SLA/지형류 원본 파일 다운로드. 반환: 파일 경로 또는 None."""
     date_str = date.strftime('%Y%m%d')
     target = f'nrt_global_allsat_phy_l4_{date_str}_dl.nc'
@@ -111,10 +125,11 @@ def download_sla(date, creds=None):
     for ds_id in (primary, fallback):
         try:
             # NRT: nrt_global_allsat_phy_l4_YYYYMMDD_처리일.nc / MY: dt_global_allsat_phy_l4_YYYYMMDD_처리일.nc
-            files = _get_original_files(ds_id, f'*l4_{date_str}_*', dest, creds)
+            files = _get_original_files(ds_id, f'*l4_{date_str}_*', dest)
         except Exception as e:
             if _is_auth_error(e):
-                raise AuthError('CMEMS 계정을 확인하세요 (아이디 또는 비밀번호가 틀렸습니다).') from e
+                raise AuthError('CMEMS 로그인이 필요합니다 — 터미널에서 '
+                                '`copernicusmarine login` 을 실행하세요.') from e
             print(f'  [SLA ] {date_str} {ds_id} 실패: {e}')
             files = []
         if files:
@@ -125,7 +140,7 @@ def download_sla(date, creds=None):
     return None
 
 
-def download_sst(date, creds=None):
+def download_sst(date):
     """OSTIA SST 원본 파일 다운로드. 반환: 파일 경로 또는 None."""
     date_str = date.strftime('%Y%m%d')
     target = f'{date_str}120000-UKMO-L4_GHRSST-SSTfnd-OSTIA-GLOB-v02.0-fv02.0.nc'
@@ -140,10 +155,11 @@ def download_sst(date, creds=None):
     for ds_id in (primary, fallback):
         try:
             # 파일명: YYYYMMDD120000-UKMO-L4_GHRSST-...nc
-            files = _get_original_files(ds_id, f'*{date_str}120000*', dest, creds)
+            files = _get_original_files(ds_id, f'*{date_str}120000*', dest)
         except Exception as e:
             if _is_auth_error(e):
-                raise AuthError('CMEMS 계정을 확인하세요 (아이디 또는 비밀번호가 틀렸습니다).') from e
+                raise AuthError('CMEMS 로그인이 필요합니다 — 터미널에서 '
+                                '`copernicusmarine login` 을 실행하세요.') from e
             print(f'  [SST ] {date_str} {ds_id} 실패: {e}')
             files = []
         if files:
@@ -154,24 +170,29 @@ def download_sst(date, creds=None):
     return None
 
 
-def download_month(year, month, creds=None):
+def download_month(year, month):
     """해당 연·월 15일자 데이터 2종 다운로드. 반환: (sla_path, sst_path)"""
-    return download_date(dt.date(year, month, 15), creds)
+    return download_date(dt.date(year, month, 15))
 
 
-def download_date(date, creds=None):
+def download_date(date):
     """임의 날짜의 데이터 2종 다운로드. 반환: (sla_path, sst_path)
 
     보고서는 매월 15일자만 쓰지만 웹 뷰어는 아무 날짜나 요청할 수 있다.
     """
     print(f'[{date}] 다운로드 시작')
-    return download_sla(date, creds), download_sst(date, creds)
+    return download_sla(date), download_sst(date)
 
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
+    if not logged_in():
+        print('CMEMS 로그인이 필요합니다. 터미널에서 `copernicusmarine login` 을 '
+              '한 번 실행한 뒤 다시 시도하세요.')
+        sys.exit(1)
+
     year = int(sys.argv[1])
     months = [int(sys.argv[2])] if len(sys.argv) > 2 else list(range(1, 13))
 

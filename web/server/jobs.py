@@ -92,9 +92,6 @@ def _run():
             job.report('실패', 1.0)
             traceback.print_exc()
         finally:
-            # 자격증명은 작업이 끝나는 즉시 메모리에서 지운다
-            job.spec.pop('username', None)
-            job.spec.pop('password', None)
             _queue.task_done()
 
 

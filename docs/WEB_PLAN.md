@@ -22,7 +22,7 @@ FastAPI (web/server/app.py)
    │
    ├─ jobs.py      워커 스레드 1개로 직렬 처리 + 진행률
    ├─ pipeline.py  자료 확보 → 레이어별 render() → 캐시
-   │    ├─ code/download_data.py   원본 nc 다운로드 (계정 선택)
+   │    ├─ code/download_data.py   원본 nc 다운로드 + 로그인 판정
    │    └─ code/{eddy_tracking,eastsea_current,eastsea_sst}.render()
    │
    └─ web/cache/<날짜>/<레이어>_<설정해시>.png  +  .json
@@ -90,8 +90,7 @@ hhh1 = sla * 100        # ← 난수성은 마스킹된 자료로 다시 만든�
 
 즉 표 1의 울릉·독도 값은 영향이 없고, 동해 전체 냉수성만 줄어든다. 줄어든 것은
 전부 동해 밖 오탐지다. 발간된 2025년판 보고서의 '동해 전체 냉수성' 수치와는
-달라지므로, 과거 수치를 대조할 일이 있으면
-`output/eddy_tracking/json_baseline_legacy/` 에 구 동작 결과를 남겨 뒀다.
+달라진다.
 
 웹 캐시는 `pipeline.ALGO_VERSION` 이 캐시 키에 들어가므로, 앞으로 분석 코드를
 바꿔 결과가 달라질 때 이 값을 올리면 옛 그림이 그대로 나오지 않는다.
@@ -128,8 +127,8 @@ O(n²) `geod.inv` 는 계획서에서 주요 병목으로 봤지만 실제로는
 즉 성능 수정은 결과를 바꾸지 않았고, 그 뒤 숫자가 달라진 것은 2절의 마스킹
 정정 때문이다(냉수성만). 전체 검증이 67초에 끝난다(이전엔 하루당 4분 이상).
 
-기준선 폴더는 마스킹 정정 시점에 한 번 교체했다.
-`json_baseline/` = 현재 동작, `json_baseline_legacy/` = 정정 전(발간 보고서) 동작.
+회귀 검증에 쓴 기준선 JSON 백업(`json_baseline/`, `json_baseline_legacy/`)은
+검증이 끝나 폴더 정리 때 지웠다. 다시 필요하면 해당 시점 코드로 재생성하면 된다.
 
 ---
 
@@ -180,15 +179,19 @@ lat <  40.125 이면서 (lon - lat) >= 101.875        동해 경계 대각선
 
 ## 5. CMEMS 계정 처리
 
-`copernicusmarine` 2.4.1 은 `get()` 에 `username=`, `password=` 를 직접 받는다.
-`download_data.py` 에 `creds` 인자를 더해 그 자리에서만 쓰도록 했다.
+**자격증명은 이 PC 에 저장된 `copernicusmarine login` 하나뿐이다.** 보고서 경로든
+웹 뷰어든 같은 로그인을 쓰고, 웹에서 계정을 따로 입력받지 않는다(예전에는 화면에
+아이디·비밀번호 칸이 있어 같은 계정을 두 번 넣게 했다).
 
-- 계정은 요청 본문으로만 받고 작업이 끝나면 `jobs.py` 가 메모리에서 지운다
-- 디스크 기록 없음, 로그 출력 없음 (실제로 확인함)
-- 브라우저 `localStorage` 저장 안 함
-- **비워 두면** 이 PC 에 저장된 로그인(`copernicusmarine login`)을 쓴다.
-  저장된 것도 없으면 계정을 입력하라고 안내한다
-- 인증 실패는 `download_data.AuthError` 로 구분해 "CMEMS 계정을 확인하세요"라고 표시
+- 판정은 `download_data.logged_in()` 한 곳 — 자격증명 파일
+  (`~/.copernicusmarine/.copernicusmarine-credentials`) 또는 환경변수
+  `COPERNICUSMARINE_SERVICE_USERNAME` / `_PASSWORD`
+- `pipeline.stored_login` 은 그 함수의 별칭이고, `GET /api/health` 가
+  `cmems_login` 으로 내려 준다. 화면은 이 값으로 상태 한 줄만 표시한다
+- 서버·API·브라우저 어디에도 비밀번호가 오가지 않는다
+- 로그인이 없으면 자료를 이미 받아둔 날짜만 볼 수 있고, 없는 날짜를 요청하면
+  `copernicusmarine login` 을 실행하라고 안내한다
+- 인증 실패(`download_data.AuthError`)는 "로그인이 만료된 것 같다"로 구분해 표시
 - 서버는 반드시 `127.0.0.1` 바인딩
 
 ### 원본 파일은 data/ 에 받는다
@@ -208,7 +211,7 @@ lat <  40.125 이면서 (lon - lat) >= 101.875        동해 경계 대각선
 | 보유 날짜 · 3항목 · 고화질(300dpi) | 약 11초 |
 | 보유 날짜 · 수온만 | 약 1.3초 |
 | **새 날짜** · 3항목 (다운로드 포함) | 약 99초 (다운로드 85초 + 렌더 14초) |
-| 잘못된 계정 → 오류 안내 | 3초 |
+| 로그인 없이 새 날짜 요청 → 오류 안내 | 즉시 |
 
 이미지 크기: 미리보기 130~360KB, 고화질 0.9~1.6MB.
 

@@ -300,7 +300,7 @@ def render(date, extent=None, style=None, out_path=None, json_path=None, quiet=F
             ax.plot(ex, ey, color=color, linewidth=2, transform=ccrs.PlateCarree(), zorder=5)
 
     ax.set_title(f'Warm / Cold Eddy ({date[:4]} / {date[4:6]} / {date[6:8]})',
-                 fontsize=25, fontweight='bold', fontname='serif')
+                 fontsize=25, fontweight='bold', fontname='serif', y=mapstyle.TITLE_Y)
     mapstyle.decorate(fig, ax, style, extent=extent,
                       source='SLA(CMEMS)', source_size=30, box_label='UWE/DCE Area')
 

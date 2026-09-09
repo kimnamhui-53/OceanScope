@@ -66,7 +66,8 @@ ytik = np.arange(0, 33, 2)
 cbh = fig.colorbar(pcm, ax=ax, ticks=ytik)
 cbh.ax.set_yticklabels([str(t) for t in ytik])
 
-ax.set_title(f'Sea Surface Temperature ({yyyy} / {mm} / {dd})', fontsize=24, fontweight='bold', fontname='serif')
+# y=1.0 은 제목 자동 위치 계산을 끄는 것 — 자세한 이유는 mapstyle.TITLE_Y 주석 참고
+ax.set_title(f'Sea Surface Temperature ({yyyy} / {mm} / {dd})', fontsize=24, fontweight='bold', fontname='serif', y=1.0)
 
 labels = [
     (126.9, 47.2, 'SST(OSTIA)', 30, [0, 0, 0]),

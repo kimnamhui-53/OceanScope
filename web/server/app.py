@@ -4,8 +4,10 @@
 
     python -m uvicorn web.server.app:app --host 127.0.0.1 --port 8000
 
-CMEMS 계정을 받으므로 반드시 127.0.0.1 로만 띄운다. 계정은 요청 본문으로만
-받아 작업이 끝나면 메모리에서 지우고, 디스크에 쓰거나 로그로 남기지 않는다.
+CMEMS 인증은 이 PC 에 저장된 로그인(`copernicusmarine login`, 또는 환경변수
+COPERNICUSMARINE_SERVICE_USERNAME / _PASSWORD)만 쓴다. 서버는 계정을 입력받지도,
+저장하지도 않는다 — 보고서 생성 경로와 자격증명이 한 곳으로 통일돼 있다.
+로컬 도구이므로 127.0.0.1 로 띄우고, 외부에 노출할 일이 생기면 HTTPS 뒤에 둘 것.
 """
 import io
 import os
@@ -51,8 +53,6 @@ class RenderRequest(BaseModel):
     east: float = 141.8
     layers: list[str] = ['eddy', 'current', 'sst']
     quality: str = 'preview'
-    username: str | None = None
-    password: str | None = None
 
 
 @app.post('/api/render')
@@ -79,8 +79,6 @@ def render(req: RenderRequest):
         'extent': (req.west, req.east, req.south, req.north),
         'layers': req.layers,
         'quality': req.quality,
-        'username': req.username,
-        'password': req.password,
     }, pipeline.run)
     return {'job_id': job.id, 'queued': jobs.pending()}
 
@@ -131,7 +129,9 @@ def download_zip(date: str, names: str = Query(..., description='쉼표로 구�
 
 @app.get('/api/health')
 def health():
-    return {'ok': True, 'queued': jobs.pending()}
+    # cmems_login: 자료가 없는 날짜를 자동으로 받아올 수 있는지 (화면 안내용)
+    return {'ok': True, 'queued': jobs.pending(),
+            'cmems_login': pipeline.stored_login()}
 
 
 app.mount('/', StaticFiles(directory=STATIC, html=True), name='static')

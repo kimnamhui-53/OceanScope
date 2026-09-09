@@ -1,12 +1,14 @@
 __pycache__/
 *.pyc
 
+# 로컬 파이썬 환경 (conda 환경은 프로젝트 밖에 만들어지므로 해당 없음)
+.venv/
+venv/
+env/
+
 # 대용량 원본·산출물 (재생성 가능)
 data/
 output/
 
 # 웹 뷰어 캐시 (렌더된 PNG·통계)
 web/cache/
-# 회귀 검증용 기준선 백업
-output/*/json_baseline/
-output/*/json_baseline_legacy/

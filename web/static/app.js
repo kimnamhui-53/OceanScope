@@ -22,6 +22,31 @@ $('preset-west').onclick = () => applyPreset(PRESETS.west);
 $('preset-south').onclick = () => applyPreset(PRESETS.south);
 $('preset-korea').onclick = () => applyPreset(PRESETS.korea);
 
+// ── CMEMS 로그인 상태 ─────────────────────────────────────────
+// 계정은 이 화면에서 받지 않는다. 서버가 쓰는 자격증명은 이 PC 에 저장된
+// `copernicusmarine login` 하나뿐이라 여기서는 그 상태만 보여준다.
+(async () => {
+  const el = $('cmems-status');
+  if (!el) return;
+  const warn = (html) => { el.classList.add('warn'); el.innerHTML = html; };
+  try {
+    const res = await fetch('/api/health', { cache: 'no-store' });
+    const data = await res.json();
+    if (data.cmems_login === undefined) {
+      // 서버가 이 코드보다 먼저 떠 있으면 예전 응답이 온다 — 재시작이 필요하다.
+      warn('서버가 예전 버전으로 떠 있습니다 — 터미널에서 <code>Ctrl+C</code> 후 다시 실행하세요.');
+    } else if (data.cmems_login) {
+      el.classList.remove('warn');
+      el.textContent = 'CMEMS 로그인됨 — 자료가 없는 날짜는 자동으로 내려받습니다.';
+    } else {
+      warn('CMEMS 로그인 안 됨 — 이미 받아둔 날짜만 볼 수 있습니다.<br>'
+        + '터미널에서 <code>copernicusmarine login</code> 을 한 번 실행한 뒤 새로고침하세요.');
+    }
+  } catch (err) {
+    warn('서버 상태를 확인하지 못했습니다 — 터미널에서 서버가 떠 있는지 확인하세요.');
+  }
+})();
+
 // ── 실행 ──────────────────────────────────────────────────────
 $('form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -36,8 +61,6 @@ $('form').addEventListener('submit', async (e) => {
     west: +$('west').value, east: +$('east').value,
     layers,
     quality: document.querySelector('input[name=quality]:checked').value,
-    username: $('username').value.trim() || null,
-    password: $('password').value || null,
   };
 
   setRunning(true);

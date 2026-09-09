@@ -78,6 +78,15 @@ SOURCE_POS = (127.6, 47.2)
 # 기본 표출 범위에서의 figure 크기 — 다른 범위는 auto_figsize() 가 여기서 유도한다
 BASE_FIGSIZE = (8.5, 9.5)
 
+# 제목 위치를 축 상단(1.0)에 고정한다 — set_title(..., y=TITLE_Y) 로 쓴다.
+# 값을 주지 않으면 matplotlib 이 제목을 눈금 라벨 위로 자동으로 밀어 올리는데,
+# 그 계산이 cartopy 0.25 의 격자선 라벨(gridlines(draw_labels=True))과 맞지 않아
+# matplotlib 3.11 에서 제목 좌표가 nan 이 된다. 그러면 제목이 아예 안 그려지고
+# 축의 tight bbox 까지 nan 이 되어, save() 의 bbox_inches='tight' 가 지도를 버리고
+# 컬러바만 잘라 낸다(수온도가 컬러바 조각으로 나오던 원인).
+# 자동 계산이 꺼져도 기본 표출 범위에서 제목은 원래 자리 그대로다(그림 불변).
+TITLE_Y = 1.0
+
 REPORT_STYLE = dict(logo=True,  stations=True,  region_box=True,  places=True, dpi=800)
 WEB_STYLE    = dict(logo=False, stations=False, region_box=False, places=True, dpi=100)
 

@@ -152,7 +152,7 @@ def render(date, extent=None, style=None, out_path=None, json_path=None, quiet=F
     ax.clabel(cs, inline=True, fontsize=9, fmt='%d', colors='k')
 
     ax.set_title(f'Eastsea Surface Temperature ({date[:4]} / {date[4:6]} / {date[6:8]})',
-                 fontsize=20, fontweight='bold', fontname='serif')
+                 fontsize=20, fontweight='bold', fontname='serif', y=mapstyle.TITLE_Y)
     mapstyle.decorate(fig, ax, style, extent=extent, source='SST(OSTIA)', source_size=25)
 
     png = out_path or os.path.join(paths.fig_dir('eastsea_sst'), f'eastsea_temp_{date}.png')

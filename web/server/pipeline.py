@@ -72,38 +72,34 @@ def have_local(date, need):
         f'{date}*UKMO-L4_GHRSST-SSTfnd-OSTIA-GLOB-v02.0-fv02.0.nc'))
 
 
-def stored_login():
-    """이 PC 에 `copernicusmarine login` 으로 저장해 둔 자격증명이 있는지."""
-    return os.path.exists(os.path.expanduser(
-        '~/.copernicusmarine/.copernicusmarine-credentials'))
+# CMEMS 로그인 여부 판단은 download_data 한 곳에만 둔다(웹·CLI 공용).
+stored_login = download_data.logged_in
+
+LOGIN_HINT = '터미널에서 `copernicusmarine login` 을 한 번 실행한 뒤 다시 시도하세요.'
 
 
-def ensure_data(date, needs, creds, report):
+def ensure_data(date, needs, report):
     """필요한 원본이 없으면 CMEMS 에서 받아온다.
 
-    creds 는 (id, pw) 이며 이 호출 안에서만 쓰이고 저장되지 않는다.
-    비워 두면 이 PC 에 저장된 로그인(copernicusmarine login)을 쓴다.
+    인증은 이 PC 에 저장된 로그인(`copernicusmarine login`)을 그대로 쓴다.
+    서버가 계정을 따로 받지 않으므로 보고서 경로와 완전히 같은 자격증명이다.
     """
     missing = [n for n in needs if not have_local(date, n)]
     if not missing:
         report('자료 확인 완료 (이미 보유)', 0.15)
         return
 
-    typed = bool(creds and creds[0] and creds[1])
-    if not typed and not stored_login():
+    if not stored_login():
         kinds = ', '.join('해면고도·해류' if m == 'sla' else '수온' for m in missing)
         raise RuntimeError(
-            f'{date} 자료({kinds})가 없습니다. CMEMS 계정을 입력하면 자동으로 내려받습니다.')
+            f'{date} 자료({kinds})가 없는데 CMEMS 로그인이 되어 있지 않습니다. {LOGIN_HINT}')
 
     report('CMEMS 에서 자료 내려받는 중…', 0.05)
     d = dt.date(int(date[:4]), int(date[4:6]), int(date[6:8]))
     try:
-        sla, sst = download_data.download_date(d, creds if typed else None)
+        sla, sst = download_data.download_date(d)
     except download_data.AuthError as e:
-        if typed:
-            raise RuntimeError(str(e)) from e
-        raise RuntimeError('저장된 CMEMS 로그인이 만료된 것 같습니다. '
-                           '계정을 직접 입력해 주세요.') from e
+        raise RuntimeError(f'저장된 CMEMS 로그인이 만료된 것 같습니다. {LOGIN_HINT}') from e
 
     if 'sla' in missing and not sla:
         raise RuntimeError(f'{date} 해면고도(SLA) 자료를 받지 못했습니다. '
@@ -121,13 +117,12 @@ def run(job):
     extent = tuple(spec['extent'])
     layers = [l for l in spec['layers'] if l in LAYERS]
     dpi = DPI_PRESETS.get(spec.get('quality', 'preview'), 100)
-    creds = (spec.get('username'), spec.get('password'))
 
     if not layers:
         raise RuntimeError('표출할 항목을 하나 이상 선택하세요.')
 
     needs = {LAYERS[l][2] for l in layers}
-    ensure_data(date, needs, creds, job.report)
+    ensure_data(date, needs, job.report)
 
     style = mapstyle.resolve(mapstyle.WEB_STYLE, dpi=dpi)
     key = _key(extent, dpi)

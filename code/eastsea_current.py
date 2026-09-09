@@ -103,7 +103,7 @@ def render(date, extent=None, style=None, out_path=None, json_path=None, quiet=F
                  coordinates='axes', color='lightgreen')
 
     ax.set_title(f'Eastsea Surface Current({date[:4]} / {date[4:6]} / {date[6:8]})',
-                 fontsize=20, fontweight='bold', fontname='serif')
+                 fontsize=20, fontweight='bold', fontname='serif', y=mapstyle.TITLE_Y)
     mapstyle.decorate(fig, ax, style, extent=extent, source='SLA(CMEMS)', source_size=20)
     if style.get('region_box'):
         # 보고서 원본에 있던 축척 문구 (quiverkey 와 별개로 찍히던 것)

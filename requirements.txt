@@ -1,0 +1,23 @@
+# pip 로 설치할 때 쓰는 목록 (권장 경로는 conda — environment.yml 참고).
+#
+# cartopy·netCDF4 는 C 라이브러리(GEOS/PROJ/HDF5)를 함께 필요로 해서
+# 환경에 따라 pip 설치가 실패한다. 그럴 때는 conda 쪽을 쓰면 된다.
+#
+#   pip install -r requirements.txt
+
+# 웹 뷰어
+fastapi
+uvicorn[standard]
+pydantic
+
+# 분석 파이프라인
+copernicusmarine
+numpy
+scipy
+matplotlib
+cartopy
+shapely
+pyproj
+netCDF4
+imageio
+pillow

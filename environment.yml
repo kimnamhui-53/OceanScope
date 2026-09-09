@@ -1,0 +1,43 @@
+# 오션스코프(OceanScope) conda 환경
+#
+#   conda env create -f environment.yml
+#   conda activate oceanscope
+#
+# cartopy·netCDF4 는 GEOS/PROJ/HDF5 같은 C 라이브러리를 함께 깔아야 해서
+# pip 보다 conda-forge 쪽이 훨씬 안정적이다. 그래서 pip 대신 이 파일을 쓴다.
+name: oceanscope
+
+# nodefaults 는 사용자의 ~/.condarc 에 설정된 채널(anaconda defaults 등)을 무시하고
+# conda-forge 만 쓰게 한다. 채널이 섞이면 컴파일된 C 라이브러리 ABI 가 어긋나
+# cartopy·netCDF4 가 import 단계에서 죽는 일이 생긴다.
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.12
+
+  # 분석 파이프라인
+  - numpy
+  - scipy
+  - matplotlib-base
+  - cartopy
+  - shapely
+  - pyproj
+  - netcdf4
+  - imageio
+  - pillow
+
+  # CMEMS 자료 다운로드
+  - copernicusmarine
+
+  # 웹 뷰어
+  - fastapi
+  - uvicorn
+  - pydantic
+
+  # uvicorn[standard] 에 해당하는 선택 의존성 (없어도 동작하지만 있으면 빠르다)
+  - websockets
+  - httptools
+  - python-dotenv
+  - watchfiles
