@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+
+# 대용량 원본·산출물 (재생성 가능)
+data/
+output/
+
+# 웹 뷰어 캐시 (렌더된 PNG·통계)
+web/cache/
+# 회귀 검증용 기준선 백업
+output/*/json_baseline/
+output/*/json_baseline_legacy/

@@ -1,0 +1,7 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1560, "h": 1880, "title": "A · 손그림 톤" },
+    { "file": "Formal.dc.html", "x": 1700, "y": 0, "w": 1560, "h": 1600, "title": "B · 공문서 톤" }
+  ],
+  "launch": { "view": "focused", "file": "Main.dc.html" }
+}
